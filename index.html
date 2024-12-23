@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Metro Circulars">
+    <title>Metro Circulars</title>
+    <!--bootstrap css link -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">  
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/x-icon" href="static/android-chrome-192x192.png">
+</head>
+<body>
+    <div class="container my-3">
+        <h4 id="header-title">Metro Circulars of <span id="current-month-year"></span></h4>
+        <form class="d-flex mb-3" id="circular-form">
+            <div class="">
+                <select class="form-control" name="month" id="month" required>
+                    <option value='01'>January</option>
+                    <option value='02'>February</option>
+                    <option value='03'>March</option>
+                    <option value='04'>April</option>
+                    <option value='05'>May</option>
+                    <option value='06'>June</option>
+                    <option value='07'>July</option>
+                    <option value='08'>August</option>
+                    <option value='09'>September</option>
+                    <option value='10'>October</option>
+                    <option value='11'>November</option>
+                    <option value='12'>December</option>
+                </select>
+            </div>
+            <div class="mx-2">
+                <input type='number' min="2020" max="2050" style="max-width: 100px;" placeholder="YYYY"
+                    id="year" class='form-control' required>
+            </div>
+            <div>
+                <button type='submit' class='btn btn-outline-primary d-inline'>View</button>
+            </div>
+        </form>
+        <div class="my-3">
+            <form id="searchForm">
+                <input type="text" id="q" minlength="3" placeholder="Search titles..." required/>
+                <button type="submit">Search</button>
+            </form>
+            <button id="showAllButton" class="mt-2 btn btn-sm btn-primary" style="display: none;">Show All</button>
+        </div>
+
+        <table class="table table-bordered table-striped">
+            <thead>
+                <tr>
+                    <th>SN</th>
+                    <th>Title</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody id="circular-list">
+                <tr>
+                    <td colspan="3" class="text-center">No Data Available</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Set the default month and year
+        const now = new Date();
+        const defaultMonth = now.getMonth() + 1; // JavaScript months are 0-indexed
+        const defaultYear = now.getFullYear();
+
+        // Elements
+        const monthSelect = document.getElementById('month');
+        const yearInput = document.getElementById('year');
+        const headerTitle = document.getElementById('current-month-year');
+        const circularForm = document.getElementById('circular-form');
+        const circularList = document.getElementById('circular-list');
+
+        // Initialize the form with default values
+        monthSelect.value = String(defaultMonth).padStart(2, '0');
+        yearInput.value = defaultYear;
+        headerTitle.textContent = `${monthSelect.options[monthSelect.selectedIndex].text} - ${defaultYear}`;
+
+        // Fetch and display data
+        const fetchData = async (month, year) => {
+            const url = `https://intranet.dmrc.org/p8/intranet_circulars_joomla/ViewSelectIntranetCircularsList?var=${year}-${month}`;
+            circularList.innerHTML = `<tr><td colspan="3" class="text-center">Loading...</td></tr>`;
+            try {
+                const response = await fetch(url);
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+
+                const table = doc.getElementById('tbl_view_select_intranet_circularslist');
+                if (table) {
+                    const rows = table.getElementsByTagName('tr');
+                    let content = '';
+                    for (let i = 1; i < rows.length; i++) { // Skip header row
+                        const cells = rows[i].getElementsByTagName('td');
+                        const link = rows[i].getElementsByTagName('a')[0];
+                        content += `
+                            <tr>
+                                <td>${i}</td>
+                                <td><a href="https://intranet.dmrc.org${link.getAttribute('href')}" target="_blank">${cells[1].textContent.trim().slice(0, -12)}</a></td>
+                                <td>${cells[1].textContent.trim().slice(-10)}</td>
+                            </tr>
+                        `;
+                    }
+                    circularList.innerHTML = content || `<tr><td colspan="3" class="text-center">No Circulars Found</td></tr>`;
+                } else {
+                    circularList.innerHTML = `<tr><td colspan="3" class="text-center">No Data Available</td></tr>`;
+                }
+            } catch (error) {
+                console.error('Error fetching circulars:', error);
+                circularList.innerHTML = `<tr><td colspan="3" class="text-center text-danger">Error Loading Data</td></tr>`;
+            }
+            showAllButton.style.display = 'none'; // Hide the "Show All" button
+            document.getElementById('q').value = '';
+        };
+
+        // Event listener for the form
+        circularForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const selectedMonth = monthSelect.value;
+            const selectedYear = yearInput.value;
+            headerTitle.textContent = `${monthSelect.options[monthSelect.selectedIndex].text} - ${selectedYear}`;
+            fetchData(selectedMonth, selectedYear);
+        });
+        document.getElementById('searchForm').addEventListener('submit', function (event) {
+            event.preventDefault(); // Prevent the form from submitting normally
+            const query = document.getElementById('q').value.toLowerCase();
+            const rows = document.getElementById('circular-list').getElementsByTagName('tr');
+          
+            for (let i = 0; i < rows.length; i++) {
+              const title = rows[i].getElementsByTagName('td')[1].textContent.toLowerCase();
+              if (title.includes(query)) {
+                rows[i].style.display = ''; // Show the row
+              } else {
+                rows[i].style.display = 'none'; // Hide the row
+              }
+            }
+          
+            // Show the "Show All" button if any row was hidden
+            document.getElementById('showAllButton').style.display = '';
+          });
+          
+          // Show All button functionality
+          document.getElementById('showAllButton').addEventListener('click', function () {
+            const rows = document.getElementById('circular-list').getElementsByTagName('tr');
+            for (let i = 0; i < rows.length; i++) {
+              rows[i].style.display = ''; // Show all rows
+            }
+            this.style.display = 'none'; // Hide the "Show All" button
+            document.getElementById('q').value = '';
+          });
+          
+
+        // Initial fetch
+        fetchData(String(defaultMonth).padStart(2, '0'), defaultYear);
+    </script>
+</body>
+</html>
