@@ -51,7 +51,7 @@
                 <template x-for="(circular, index) in filteredCirculars" :key="index">
                     <tr>
                         <td x-text="index + 1"></td>
-                        <td><a :href="circular.link" target="_blank" x-text="circular.title"></a></td>
+                        <td><a :href="`preview.html?title=${encodeURIComponent(circular.title)}&fileURL=${encodeURIComponent(circular.link)}`" x-text="circular.title"></a></td>
                         <td x-text="circular.date"></td>
                     </tr>
                 </template>
